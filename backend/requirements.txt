@@ -1,0 +1,13 @@
+fastapi[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+alembic
+pymysql
+cryptography
+python-multipart
+pandas
+openpyxl
+rapidfuzz
+pytest
+httpx
