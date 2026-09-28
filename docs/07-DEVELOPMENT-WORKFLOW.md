@@ -158,3 +158,37 @@ Done means:
 - tests cover important business logic
 - Docker environment works
 - documentation is updated
+
+---
+
+# Minimal-File Development Rule
+
+Keep implementation structure intentionally simple.
+
+Do not create extra architectural layers unless they solve an actual problem.
+
+For most backend features, the maximum expected domain structure is:
+
+    routes.py
+    schemas.py
+    service.py
+
+Database models remain centralized in:
+
+    app/db/models.py
+
+Small functionality can stay in an existing file.
+
+For frontend features, do not create one component per tiny UI element. Split files only when a component becomes difficult to understand or is genuinely reusable.
+
+This rule exists because four developers will build separate vertical slices and later integrate them into one application.
+
+The project values:
+
+    fewer integration points
+    consistent contracts
+    readable code
+    easy debugging
+    easy AI-assisted development
+
+over unnecessary architectural complexity.

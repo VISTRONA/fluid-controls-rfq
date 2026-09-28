@@ -1,10 +1,10 @@
-name: fluid-controls-rfq
-
 services:
 
   db:
     image: mysql:8.4
-    container_name: rfq-db
+    container_name: fluid-rfq-db
+
+    restart: unless-stopped
 
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -12,8 +12,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
 
-    ports:
-      - "3306:3306"
+
 
     volumes:
       - mysql_data:/var/lib/mysql
@@ -21,8 +20,14 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD}"
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD}"
         ]
       interval: 5s
       timeout: 5s
@@ -33,12 +38,15 @@ services:
     build:
       context: ./backend
 
-    container_name: rfq-backend
+    container_name: fluid-rfq-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
 
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      APP_ENV: ${APP_ENV}
-      CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:
       - "8000:8000"
@@ -55,7 +63,9 @@ services:
     build:
       context: ./frontend
 
-    container_name: rfq-frontend
+    container_name: fluid-rfq-frontend
+
+    restart: unless-stopped
 
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
@@ -72,5 +82,7 @@ services:
 
 
 volumes:
+
   mysql_data:
+
   frontend_node_modules:

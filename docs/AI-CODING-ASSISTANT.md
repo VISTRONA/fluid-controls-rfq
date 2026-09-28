@@ -222,3 +222,102 @@ Prefer:
 over unnecessary abstraction.
 
 The objective is a working maintainable RFQ system, not maximum architectural complexity.
+
+---
+
+# MINIMAL-FILE RULE — IMPORTANT
+
+This project intentionally uses as few files and abstraction layers as practical.
+
+The goal is EASY TEAM INTEGRATION.
+
+AI assistants MUST NOT create unnecessary files simply because a larger production architecture commonly uses them.
+
+## Rules
+
+Prefer:
+
+    one clear file
+
+over:
+
+    model/
+    repository/
+    controller/
+    handler/
+    mapper/
+    dto/
+    interface/
+    factory/
+
+for simple functionality.
+
+DO NOT introduce:
+
+- repository pattern
+- controller layer
+- DAO layer
+- command/query handlers
+- one-class-per-file architecture
+- separate interfaces for every service
+- duplicate DTO/model hierarchies
+- unnecessary utility/helper files
+- microservice-style structure
+- duplicate API clients
+- duplicate database model trees
+
+unless the existing implementation genuinely becomes too large and the TEAM agrees to split it.
+
+## Backend Rule
+
+Shared SQLAlchemy database models are initially kept in:
+
+    backend/app/db/models.py
+
+Each functional domain should normally need at most:
+
+    routes.py
+    schemas.py
+    service.py
+
+and should create only the files it actually needs.
+
+Example:
+
+    rfqs/
+        routes.py
+        schemas.py
+        service.py
+
+Do NOT create empty architecture files merely to satisfy a pattern.
+
+Small functionality may remain in an existing domain file.
+
+## Frontend Rule
+
+Do not create a separate file for every tiny component.
+
+A feature may initially use:
+
+    features/rfq/
+        RfqExplorer.tsx
+        RfqDetail.tsx
+        api.ts
+
+and split further only when necessary.
+
+Shared UI belongs in shared components only when it is ACTUALLY reused.
+
+## Integration Principle
+
+Every extra file/layer creates another integration point.
+
+Therefore:
+
+    SIMPLE > CLEVER
+
+    WORKING > OVER-ENGINEERED
+
+    SHARED CONTRACTS > PERSONAL ARCHITECTURE PREFERENCES
+
+If an AI assistant wants to introduce a new architectural layer, it should first explain why the existing structure cannot reasonably handle the requirement.
