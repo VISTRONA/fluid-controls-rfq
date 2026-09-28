@@ -1,5 +1,8 @@
 # Fluid Controls RFQ Management & Quotation Automation
 
+# Most improtant note: Enjoy the code. Write joke etc. Just have fun.
+
+
 ## 1. Project Purpose
 
 This repository contains the RFQ (Request for Quotation) module being developed for Fluid Controls.
