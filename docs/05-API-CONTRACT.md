@@ -812,7 +812,7 @@ Exact output format is an implementation/MVP decision and must remain simple.
 
 ---
 
-# ANALYTICS — ARYAN
+# ANALYTICS — AARYAN
 
 All analytics should support consistent date/filter parameters where meaningful.
 

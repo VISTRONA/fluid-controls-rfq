@@ -36,7 +36,7 @@ Advait:
     search
     history
 
-Aryan:
+Aaryan:
 
     dashboard
     analytics

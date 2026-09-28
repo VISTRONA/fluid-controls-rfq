@@ -129,7 +129,7 @@ Responsibilities:
 
 Advait does NOT implement POT internals.
 
-## Aryan — Dashboard & Analytics
+## Aaryan — Dashboard & Analytics
 
 Primary backend:
 
@@ -179,7 +179,7 @@ Analytics calculations belong primarily in backend services.
     Search / History / Integration
           |
           v
-    ARYAN
+    AARYAN
     Analytics / Dashboard
 
 This is a dependency relationship, not a strict chronological rule.

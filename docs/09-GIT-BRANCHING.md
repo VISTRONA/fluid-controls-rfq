@@ -13,7 +13,7 @@ Do not develop large features directly on `main`.
 Do NOT create permanent branches such as:
 
     aneesh
-    aryan
+    aaryan
     gungun
     advait
 
@@ -35,9 +35,9 @@ Advait:
 
     feature/advait-explorer-foundation
 
-Aryan:
+Aaryan:
 
-    feature/aryan-dashboard-foundation
+    feature/aaryan-dashboard-foundation
 
 ## Later Examples
 
@@ -50,8 +50,8 @@ Aryan:
     feature/advait-rfq-search
     feature/advait-integration-contract
 
-    feature/aryan-sla-dashboard
-    feature/aryan-turnaround-chart
+    feature/aaryan-sla-dashboard
+    feature/aaryan-turnaround-chart
 
 ## Create Branch
 

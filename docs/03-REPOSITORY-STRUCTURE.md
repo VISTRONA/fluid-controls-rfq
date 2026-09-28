@@ -190,7 +190,7 @@ Expected application routes:
 
 Dashboard feature components.
 
-Owner: Aryan.
+Owner: Aaryan.
 
 ## src/features/rfq/
 
@@ -222,7 +222,7 @@ Owner: Gungun.
 
 Analytics screens/charts.
 
-Owner: Aryan.
+Owner: Aaryan.
 
 ## src/features/search/
 
