@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Import company tracker{% endblock %}
+{% block page_title %}Import company tracker{% endblock %}
+{% block page_subtitle %}Preview, validate and review before creating RFQs{% endblock %}
+{% block content %}
+<div class="enterprise-card"><div class="card-body-styled">
+<p>Upload the current 14-column RFQ tracker. Display/lookup sheets are ignored. Import creates new RFQs only. Original cells remain available in detail, print and export; no historical status is mapped automatically.</p>
+<form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="preview">
+<input class="form-control mb-3" type="file" name="workbook" accept=".xlsx" required>
+<button class="btn btn-primary" type="submit">Preview workbook</button>
+</form>
+{% for error in errors %}<p class="text-danger mt-2">{{ error }}</p>{% endfor %}
+</div></div>
+{% if rows %}
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="commit">
+<input type="hidden" name="preview_token" value="{{ preview_token }}">
+<div class="enterprise-card mt-3"><div class="card-body-styled">
+<h2 class="card-title-styled">{{ rows|length }} rows found — explicit mappings</h2>
+<p>“Complete” can refer to an internal R&amp;D task. Choose its application meaning only after business review. Blank statuses also require a choice. Names are not accounts; choose a user or explicitly leave unassigned.</p>
+<div class="row">
+<div class="col-md-4"><h3 class="fs-6">Historical status → workflow</h3>
+{% for original in original_statuses %}{% set key = 'status_' ~ loop.index0 %}
+<label class="form-label">{{ original or '(blank)' }}</label>
+<select name="{{ key }}" class="form-select mb-2"><option value="">Choose after review</option>{% for status in config.STATUSES %}<option value="{{ status }}" {% if review and review.get(key) == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select>
+{% endfor %}</div>
+<div class="col-md-4"><h3 class="fs-6">Request From → RFQ type</h3>
+{% for original in original_types %}{% set key = 'type_' ~ loop.index0 %}
+<label class="form-label">{{ original or '(blank)' }}</label>
+<select name="{{ key }}" class="form-select mb-2"><option value="">Choose after review</option>{% for kind in config.RFQ_TYPES %}<option value="{{ kind }}" {% if review and review.get(key) == kind %}selected{% endif %}>{{ kind }}</option>{% endfor %}</select>
+{% endfor %}</div>
+<div class="col-md-4"><h3 class="fs-6">Sales person → assignee</h3>
+{% for original in original_sales %}{% set key = 'sales_' ~ loop.index0 %}
+<label class="form-label">{{ original or '(blank)' }}</label>
+<select name="{{ key }}" class="form-select mb-2"><option value="">Choose after review</option><option value="unassigned" {% if review and review.get(key) == 'unassigned' %}selected{% endif %}>Leave unassigned</option>{% for u in users %}<option value="{{ u.id }}" {% if review and review.get(key) == u.id|string %}selected{% endif %}>{{ u.name }} ({{ u.email }})</option>{% endfor %}</select>
+{% endfor %}</div>
+</div>
+<label class="form-check-label mt-3"><input class="form-check-input" type="checkbox" name="apply_sla_defaults" value="yes" {% if review and review.get('apply_sla_defaults') %}checked{% endif %}> For missing deadlines, apply the app’s current priority/calendar-day SLA defaults and use the SLA date as quotation deadline. Company SLA semantics remain subject to confirmation.</label>
+<p class="small text-muted">{{ config.SLA_DAYS_BY_PRIORITY }}. Priority is reviewed per row; missing tracker priorities are initially shown as Medium. Historical imports do not send completion emails.</p>
+</div></div>
+<div class="enterprise-card mt-3"><div class="card-body-styled">
+<p>Select only reviewed rows. Duplicates require selecting at most one. Correct missing customer/date fields or exclude those rows. All selected rows must validate before any are saved.</p>
+<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Include / source</th><th>Customer / title</th><th>Original cells</th><th>Priority / dates</th><th>Validation</th></tr></thead><tbody>
+{% for row in rows %}{% set idx = loop.index0 %}{% set raw = row.raw %}
+<tr>
+<td><input type="checkbox" name="include" value="{{ idx }}" {% if review and idx|string in review.getlist('include') %}checked{% endif %} {% if row.errors %}disabled{% endif %}> {{ row.number }}<br><small>{{ row.sheet }} row {{ row.row }}</small></td>
+<td><label class="form-label">Customer/project</label><input class="form-control mb-2" name="customer_{{ idx }}" value="{{ review.get('customer_' ~ idx) if review else (raw.get('Customer Name /Project Specification') or '') }}" maxlength="150">
+<label class="form-label">Title</label><input class="form-control" name="title_{{ idx }}" value="{{ review.get('title_' ~ idx) if review else (raw.get('Title') or row.number) }}" maxlength="200"></td>
+<td><details><summary>{{ raw.get('Status') or '(blank)' }} / {{ raw.get('Request From') or '(blank)' }}</summary>{% for key, value in raw.items() %}<div><strong>{{ key }}:</strong> {{ value if value is not none else '(blank)' }}</div>{% endfor %}</details></td>
+<td><select name="priority_{{ idx }}" class="form-select mb-2">{% for p in config.PRIORITIES %}<option {% if (review.get('priority_' ~ idx) if review else raw.get('Priority', 'Medium')) == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+{% for key, label, header in [('received','Received','RFQ Received Date'),('completed','Completed','Completion Date'),('sla','SLA deadline','SLA Deadline'),('quote','Quotation deadline','Quotation Deadline')] %}
+<label class="form-label small">{{ label }}</label><input class="form-control mb-2" name="{{ key }}_{{ idx }}" placeholder="YYYY-MM-DD" value="{{ review.get(key ~ '_' ~ idx) if review else (raw.get(header) or '') }}">
+{% endfor %}</td>
+<td>{% for e in row.errors %}<p class="text-danger small">{{ e }}</p>{% endfor %}{% for w in row.warnings %}<p class="text-warning small">{{ w }}</p>{% endfor %}</td>
+</tr>{% endfor %}
+</tbody></table></div>
+<label class="form-check-label"><input type="checkbox" class="form-check-input" name="review_confirmed" value="yes" required> I reviewed the selected rows, historical status/type/account mappings, priorities and deadlines.</label>
+<div class="mt-3"><button class="btn btn-primary" type="submit">Validate and commit reviewed rows</button></div>
+</div></div></form>
+{% endif %}
+{% endblock %}

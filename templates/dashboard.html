@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Overview{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}RFQ traceability, SLA adherence, and order conversion performance{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('reports.print_report') }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Print all-RFQ summary</a>
+<div class="d-flex align-items-center gap-2">
+  <div class="input-group input-group-sm" style="width: 220px;">
+    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-regular fa-calendar"></i></span>
+    <select class="form-select border-start-0" id="monthSelector" onchange="window.location.href='?month='+this.value">
+      <option value="">Full Year {{ current_year }}</option>
+      {% for m in months_list %}
+        <option value="{{ m.val }}" {% if current_month == m.val %}selected{% endif %}>{{ m.name }} {{ current_year }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-outline-secondary btn-sm" onclick="location.reload();" title="Refresh Data">
+    <i class="fa-solid fa-arrows-rotate"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  
+  <!-- Row 1: Primary KPI Cards -->
+  <div class="row g-3 mb-4">
+    <!-- Total RFQs -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">TOTAL ORDERS / RFQs</span>
+          <div class="kpi-icon-box kpi-icon-blue">
+            <i class="fa-solid fa-folder-open"></i>
+          </div>
+        </div>
+        <div class="kpi-number">{{ total_rfqs }}</div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-positive">
+            <i class="fa-solid fa-arrow-trend-up"></i> +12.5%
+          </span>
+          <span class="kpi-context">vs previous period</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending RFQs -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">PENDING ORDERS / RFQs</span>
+          <div class="kpi-icon-box kpi-icon-amber">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+        </div>
+        <div class="kpi-number text-amber">{{ pending_rfqs }}</div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-neutral">
+            <i class="fa-solid fa-arrow-right"></i> Active
+          </span>
+          <span class="kpi-context">In active workflow</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Completed RFQs -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">COMPLETED ORDERS / RFQs</span>
+          <div class="kpi-icon-box kpi-icon-emerald">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+        <div class="kpi-number text-success">{{ completed_rfqs }}</div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-positive">
+            <i class="fa-solid fa-check-double"></i> Won/Closed
+          </span>
+          <span class="kpi-context">Decided outcomes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Month -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">THIS MONTH</span>
+          <div class="kpi-icon-box kpi-icon-purple">
+            <i class="fa-regular fa-calendar-check"></i>
+          </div>
+        </div>
+        <div class="kpi-number">{{ this_month_rfqs }}</div>
+        <div class="kpi-footer">
+          <span class="trend-badge {% if month_trend_pct >= 0 %}trend-positive{% else %}trend-negative{% endif %}">
+            <i class="fa-solid {% if month_trend_pct >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i> {{ month_trend_pct }}%
+          </span>
+          <span class="kpi-context">MoM Growth</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: SLA & Quality KPI Cards -->
+  <div class="row g-3 mb-4">
+    <!-- Overdue RFQs -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+        <div class="kpi-card-header">
+          <span class="kpi-title text-danger">OVERDUE RFQs</span>
+          <div class="kpi-icon-box kpi-icon-rose">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+        </div>
+        <div class="kpi-number text-danger">{{ overdue_count }}</div>
+        <div class="kpi-footer">
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">SLA Breached</span>
+          <span class="kpi-context">Requires urgent action</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLA At Risk -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+        <div class="kpi-card-header">
+          <span class="kpi-title text-warning-emphasis">SLA AT RISK</span>
+          <div class="kpi-icon-box kpi-icon-amber">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+        </div>
+        <div class="kpi-number text-warning-emphasis">{{ approaching_count }}</div>
+        <div class="kpi-footer">
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">&gt; 75% consumed</span>
+          <span class="kpi-context">Deadline approaching</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Average Closure Time -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">AVG CLOSURE TIME</span>
+          <div class="kpi-icon-box kpi-icon-cyan">
+            <i class="fa-solid fa-stopwatch"></i>
+          </div>
+        </div>
+        <div class="kpi-number">{{ avg_closure_days }} <span style="font-size: 16px; font-weight: 600; color: #64748b;">Days</span></div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-positive">
+            <i class="fa-solid fa-bolt"></i> Fast
+          </span>
+          <span class="kpi-context">Quote turnaround: {{ avg_turnaround_days }}d</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Win Rate -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">WIN RATE</span>
+          <div class="kpi-icon-box kpi-icon-indigo">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+        </div>
+        <div class="kpi-number text-primary">{{ win_rate }}%</div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-positive">
+            <i class="fa-solid fa-arrow-trend-up"></i> High
+          </span>
+          <span class="kpi-context">Conversion efficiency</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Charts Section -->
+  <div class="row g-3 mb-4">
+    <!-- Chart 1: RFQs by Type -->
+    <div class="col-12 col-lg-4">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-chart-column text-primary"></i> RFQs by Type
+          </h2>
+          <span class="badge bg-light text-muted border">Distribution</span>
+        </div>
+        <div class="card-body-styled">
+          <div style="height: 260px; position: relative;">
+            <canvas id="chartRfqType"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 2: RFQs Over Time (with period toggle) -->
+    <div class="col-12 col-lg-8">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-chart-line text-primary"></i> RFQs Over Time
+          </h2>
+          <div class="btn-group btn-group-sm" role="group" id="trendPeriodButtons">
+            <button type="button" class="btn btn-outline-secondary active" onclick="loadTrendData('monthly', this)">Monthly</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadTrendData('quarterly', this)">Quarterly</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadTrendData('half-yearly', this)">Half-Yearly</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadTrendData('yearly', this)">Yearly</button>
+          </div>
+        </div>
+        <div class="card-body-styled">
+          <div style="height: 260px; position: relative;">
+            <canvas id="chartRfqTrend"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 4: Performance & Comparison Charts -->
+  <div class="row g-3 mb-4">
+    <!-- Chart 3: Sales / Employee Performance -->
+    <div class="col-12 col-lg-6">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-users text-primary"></i> Sales / Employee Performance
+          </h2>
+          <span class="badge bg-light text-muted border">RFQs Handled</span>
+        </div>
+        <div class="card-body-styled">
+          <div style="height: 280px; position: relative;">
+            <canvas id="chartEmployeePerf"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 4: Received vs Completion -->
+    <div class="col-12 col-lg-6">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-code-compare text-success"></i> Received vs Completion
+          </h2>
+          <span class="badge bg-light text-muted border">Velocity</span>
+        </div>
+        <div class="card-body-styled">
+          <div style="height: 280px; position: relative;">
+            <canvas id="chartReceivedVsCompleted"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 5: Status Distribution & SLA Breakdown -->
+  <div class="row g-3 mb-4">
+    <!-- Chart 5: Status Distribution -->
+    <div class="col-12 col-lg-6">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-chart-pie text-info"></i> Status Distribution
+          </h2>
+          <span class="badge bg-light text-muted border">Active Stages</span>
+        </div>
+        <div class="card-body-styled d-flex align-items-center justify-content-center">
+          <div style="height: 260px; width: 100%; position: relative;">
+            <canvas id="chartStatusDist"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 6: SLA Adherence Breakdown -->
+    <div class="col-12 col-lg-6">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-shield-halved text-warning"></i> SLA Performance Breakdown
+          </h2>
+          <span class="badge bg-light text-muted border">SLA Compliance</span>
+        </div>
+        <div class="card-body-styled d-flex align-items-center justify-content-center">
+          <div style="height: 260px; width: 100%; position: relative;">
+            <canvas id="chartSlaPerf"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 6: Operational Attention & Follow-up Queue -->
+  <div class="row g-3">
+    <!-- Urgent / SLA At-Risk RFQs Queue -->
+    <div class="col-12 col-lg-7">
+      <div class="enterprise-card mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-triangle-exclamation text-danger"></i> Urgent & At-Risk RFQs
+          </h2>
+          <a href="{{ url_for('rfq.list_rfqs', sla_status='RED') }}" class="btn btn-outline-danger btn-sm py-1 px-2" style="font-size: 11px;">
+            View Breached RFQs
+          </a>
+        </div>
+        <div class="card-body-styled p-0">
+          <div class="table-responsive">
+            <table class="enterprise-table mb-0">
+              <thead>
+                <tr>
+                  <th>RFQ #</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>SLA Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if urgent_rfqs %}
+                  {% for item in urgent_rfqs %}
+                  <tr>
+                    <td>
+                      <a href="{{ url_for('rfq.detail_rfq', id=item.rfq.id) }}" class="fw-bold text-primary text-decoration-none">
+                        {{ item.rfq.rfq_number }}
+                      </a>
+                    </td>
+                    <td>
+                      <div class="fw-semibold text-truncate" style="max-width: 140px;">{{ item.rfq.customer_name }}</div>
+                      <small class="text-muted">{{ item.rfq.rfq_type }}</small>
+                    </td>
+                    <td>
+                      <span class="status-pill {{ item.rfq.current_status | status_badge }}">
+                        {{ item.rfq.current_status.replace('_', ' ') }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge priority-{{ item.rfq.priority }}">{{ item.rfq.priority }}</span>
+                    </td>
+                    <td>
+                      <span class="sla-badge {% if item.sla.status == 'RED' %}sla-red{% elif item.sla.status == 'YELLOW' %}sla-yellow{% else %}sla-green{% endif %}">
+                        <i class="fa-solid {% if item.sla.status == 'RED' %}fa-circle-xmark{% elif item.sla.status == 'YELLOW' %}fa-clock{% else %}fa-check{% endif %}"></i>
+                        {{ item.sla.time_remaining_str }}
+                      </span>
+                    </td>
+                    <td>
+                      <a href="{{ url_for('rfq.detail_rfq', id=item.rfq.id) }}" class="btn btn-sm btn-light border py-1 px-2" title="Open RFQ">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                      <i class="fa-solid fa-check-circle text-success fs-4 mb-2 d-block"></i>
+                      No overdue or at-risk RFQs right now. Excellent SLA compliance!
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Follow-ups Queue & Recent Audit -->
+    <div class="col-12 col-lg-5">
+      <div class="enterprise-card mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-calendar-check text-primary"></i> Follow-up Pipeline
+          </h2>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ today_followups|length }} Due Today</span>
+        </div>
+        <div class="card-body-styled">
+          <!-- Follow-ups tab content -->
+          {% if today_followups %}
+            <h6 class="text-danger fw-bold small text-uppercase mb-2"><i class="fa-solid fa-fire me-1"></i> Due Today</h6>
+            <div class="list-group list-group-flush mb-3">
+              {% for f in today_followups %}
+              <div class="list-group-item px-0 py-2 border-bottom">
+                <div class="d-flex justify-content-between align-items-center">
+                  <a href="{{ url_for('rfq.detail_rfq', id=f.rfq_id) }}" class="fw-bold text-decoration-none text-dark small">
+                    {{ f.rfq.rfq_number }} - {{ f.contact_person }}
+                  </a>
+                  <span class="badge bg-light text-dark border">{{ f.contact_method }}</span>
+                </div>
+                <p class="text-muted small mb-0 text-truncate">{{ f.comments }}</p>
+              </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <h6 class="text-muted fw-bold small text-uppercase mb-2"><i class="fa-regular fa-calendar-days me-1"></i> Upcoming Follow-ups</h6>
+          {% if upcoming_followups %}
+            <div class="list-group list-group-flush">
+              {% for f in upcoming_followups %}
+              <div class="list-group-item px-0 py-2 border-bottom">
+                <div class="d-flex justify-content-between align-items-center">
+                  <a href="{{ url_for('rfq.detail_rfq', id=f.rfq_id) }}" class="fw-semibold text-decoration-none text-primary small">
+                    {{ f.rfq.rfq_number }} ({{ f.rfq.customer_name }})
+                  </a>
+                  <small class="text-muted">{{ f.followup_date.strftime('%b %d') }}</small>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                  <span class="text-muted small text-truncate" style="max-width: 200px;">{{ f.comments }}</span>
+                  <span class="badge bg-secondary-subtle text-secondary" style="font-size: 10px;">{{ f.contact_method }}</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted small my-3">No upcoming follow-ups scheduled.</p>
+          {% endif %}
+
+          <!-- Audit Log Mini Feed -->
+          <div class="mt-4 pt-3 border-top">
+            <h6 class="text-muted fw-bold small text-uppercase mb-2"><i class="fa-solid fa-clock-rotate-left me-1"></i> Live Activity Feed</h6>
+            <div class="small">
+              {% for act in recent_activities[:4] %}
+              <div class="d-flex align-items-start gap-2 py-1">
+                <span class="badge bg-light text-dark border mt-1" style="font-size: 9px;">{{ act.action }}</span>
+                <div class="text-truncate flex-grow-1" style="font-size: 11.5px;">
+                  <span class="fw-semibold text-dark">{{ act.user.name if act.user else 'System' }}</span>: {{ act.description }}
+                </div>
+                <small class="text-muted flex-shrink-0" style="font-size: 10px;">{{ act.created_at.strftime('%H:%M') }}</small>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

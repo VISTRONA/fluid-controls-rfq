@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications Inbox{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}Alerts, SLA breach warnings, and workflow assignment notices{% endblock %}
+
+{% block header_actions %}
+<form method="POST" action="{{ url_for('notifications.mark_all_read') }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-outline-secondary btn-sm">
+    <i class="fa-solid fa-check-double me-1"></i> Mark All as Read
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-9">
+      
+      <div class="enterprise-card">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-bell text-primary"></i> Notification Activity
+          </h2>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ notifications|length }} Total</span>
+        </div>
+
+        <div class="card-body-styled p-0">
+          {% if notifications %}
+          <div class="list-group list-group-flush">
+            {% for n in notifications %}
+            <div class="list-group-item px-4 py-3 border-bottom d-flex align-items-center justify-content-between {% if not n.is_read %}bg-light-subtle{% endif %}">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px; 
+                  {% if n.notification_type == 'sla_breached' %}background-color: #fee2e2; color: #dc2626;
+                  {% elif n.notification_type == 'sla_approaching' %}background-color: #fef3c7; color: #d97706;
+                  {% elif n.notification_type == 'assigned' %}background-color: #eff6ff; color: #2563eb;
+                  {% else %}background-color: #f1f5f9; color: #475569;{% endif %}">
+                  <i class="fa-solid 
+                    {% if n.notification_type == 'sla_breached' %}fa-triangle-exclamation
+                    {% elif n.notification_type == 'sla_approaching' %}fa-hourglass-half
+                    {% elif n.notification_type == 'assigned' %}fa-user-tag
+                    {% elif n.notification_type == 'followup_due' %}fa-phone-volume
+                    {% else %}fa-circle-info{% endif %}">
+                  </i>
+                </div>
+
+                <div>
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="fw-bold text-dark fs-6">{{ n.title }}</span>
+                    {% if not n.is_read %}
+                      <span class="badge bg-danger rounded-pill" style="font-size: 9px;">NEW</span>
+                    {% endif %}
+                  </div>
+                  <p class="text-muted mb-0 small">{{ n.message }}</p>
+                  <small class="text-secondary" style="font-size: 11px;">
+                    <i class="fa-regular fa-clock me-1"></i> {{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}
+                  </small>
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                {% if n.rfq_id %}
+                  <form method="POST" action="{{ url_for('notifications.mark_read', id=n.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-primary">View RFQ</button>
+                  </form>
+                {% elif not n.is_read %}
+                  <form method="POST" action="{{ url_for('notifications.mark_read', id=n.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-light border py-1 px-2 text-muted" title="Mark read">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-regular fa-bell-slash fs-2 mb-2 d-block text-secondary"></i>
+            You are all caught up! No notifications in your inbox.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

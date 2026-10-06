@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}RFQ Records & Traceability{% endblock %}
+{% block page_title %}RFQ Records{% endblock %}
+{% block page_subtitle %}Centralized repository and status tracking for all customer inquiries{% endblock %}
+
+{% block header_actions %}
+{% if current_user.is_manager %}<a href="{{ url_for('rfq.import_tracker') }}" class="btn btn-outline-secondary btn-sm">Import Excel</a>{% endif %}
+<a href="{{ url_for('reports.export_excel', **export_filters) }}" class="btn btn-outline-secondary btn-sm">Export Excel</a>
+<a href="{{ url_for('rfq.print_list', **export_filters) }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Print / PDF</a>
+<div class="d-flex align-items-center gap-2">
+  <a href="{{ url_for('rfq.create_rfq') }}" class="btn btn-enterprise-primary btn-sm">
+    <i class="fa-solid fa-plus"></i>
+    <span>New RFQ</span>
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="rfqs-container">
+
+  <!-- Filter & Search Bar Card -->
+  <div class="enterprise-card mb-4">
+    <div class="card-body-styled py-3">
+      <form method="GET" action="{{ url_for('rfq.list_rfqs') }}" id="filterForm">
+        <div class="row g-2 align-items-center">
+          <!-- Search input -->
+          <div class="col-12 col-md-3">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" class="form-control form-control-styled border-start-0" name="search" placeholder="Search RFQ #, Customer, Product..." value="{{ selected_search }}">
+            </div>
+          </div>
+
+          <!-- Status Filter -->
+          <div class="col-6 col-md-2">
+            <select class="form-select form-select-sm" name="status" onchange="document.getElementById('filterForm').submit()">
+              <option value="">All Statuses</option>
+              {% for s in statuses %}
+                <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s.replace('_', ' ') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Type Filter -->
+          <div class="col-6 col-md-2">
+            <select class="form-select form-select-sm" name="rfq_type" onchange="document.getElementById('filterForm').submit()">
+              <option value="">All Types</option>
+              {% for t in rfq_types %}
+                <option value="{{ t }}" {% if selected_type == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Priority Filter -->
+          <div class="col-6 col-md-1">
+            <select class="form-select form-select-sm" name="priority" onchange="document.getElementById('filterForm').submit()">
+              <option value="">Priority</option>
+              {% for p in priorities %}
+                <option value="{{ p }}" {% if selected_priority == p %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- SLA Filter -->
+          <div class="col-6 col-md-2">
+            <select class="form-select form-select-sm" name="sla_status" onchange="document.getElementById('filterForm').submit()">
+              <option value="">SLA Status</option>
+              <option value="GREEN" {% if selected_sla == 'GREEN' %}selected{% endif %}>Within SLA (Green)</option>
+              <option value="YELLOW" {% if selected_sla == 'YELLOW' %}selected{% endif %}>Approaching (Yellow)</option>
+              <option value="RED" {% if selected_sla == 'RED' %}selected{% endif %}>Breached (Red)</option>
+            </select>
+          </div>
+
+          <!-- Assigned User Filter -->
+          <div class="col-6 col-md-2">
+            <select class="form-select form-select-sm" name="assigned_to" onchange="document.getElementById('filterForm').submit()">
+              <option value="">Assigned To</option>
+              {% for u in users %}
+                <option value="{{ u.id }}" {% if selected_assigned == u.id %}selected{% endif %}>{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Secondary Filter Row -->
+        <div class="row g-2 align-items-center mt-2 pt-2 border-top">
+          <div class="col-auto d-flex align-items-center gap-2">
+            <span class="text-muted small fw-semibold">Received Between:</span>
+            <input type="date" class="form-control form-control-sm" name="start_date" style="width: 140px;" value="{{ selected_start }}">
+            <span class="text-muted small">to</span>
+            <input type="date" class="form-control form-control-sm" name="end_date" style="width: 140px;" value="{{ selected_end }}">
+          </div>
+
+          <div class="col-auto d-flex align-items-center gap-2">
+            <span class="text-muted small fw-semibold">Sort By:</span>
+            <select class="form-select form-select-sm" name="sort" style="width: 170px;" onchange="document.getElementById('filterForm').submit()">
+              <option value="received_desc" {% if selected_sort == 'received_desc' %}selected{% endif %}>Received (Newest)</option>
+              <option value="received_asc" {% if selected_sort == 'received_asc' %}selected{% endif %}>Received (Oldest)</option>
+              <option value="deadline_asc" {% if selected_sort == 'deadline_asc' %}selected{% endif %}>Deadline (Urgent)</option>
+              <option value="priority_desc" {% if selected_sort == 'priority_desc' %}selected{% endif %}>Highest Priority</option>
+              <option value="number_asc" {% if selected_sort == 'number_asc' %}selected{% endif %}>RFQ Number</option>
+            </select>
+          </div>
+
+          <div class="col-auto ms-auto d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary px-3">Filter</button>
+            <a href="{{ url_for('rfq.list_rfqs') }}" class="btn btn-sm btn-outline-secondary px-3">Reset</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RFQ Table Card -->
+  <div class="enterprise-card">
+    <div class="card-header-styled">
+      <div class="d-flex align-items-center gap-2">
+        <h2 class="card-title-styled">
+          <i class="fa-solid fa-list-check text-primary"></i> RFQ Inventory
+        </h2>
+        <span class="badge bg-secondary-subtle text-secondary">{{ pagination.total }} records found</span>
+      </div>
+    </div>
+    
+    <div class="card-body-styled p-0">
+      <div class="table-responsive">
+        <table class="enterprise-table mb-0">
+          <thead>
+            <tr>
+              <th>RFQ Number</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Received</th>
+              <th>Deadline</th>
+              <th>Assigned To</th>
+              <th>Current Status</th>
+              <th>Priority</th>
+              <th>SLA Status</th>
+              <th>Est. Value</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if rfqs %}
+              {% for r in rfqs %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('rfq.detail_rfq', id=r.id) }}" class="fw-bold text-primary text-decoration-none">
+                    {{ r.rfq_number }}
+                  </a>
+                  <div class="small text-muted text-truncate" style="max-width: 170px;">{{ r.title }}</div>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark text-truncate" style="max-width: 150px;">{{ r.customer_name }}</div>
+                  <small class="text-muted text-truncate d-block" style="max-width: 150px;">{{ r.customer_email or '-' }}</small>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ r.rfq_type }}</span>
+                </td>
+                <td>
+                  <span class="text-secondary small">{{ r.received_date.strftime('%Y-%m-%d') if r.received_date else '-' }}</span>
+                </td>
+                <td>
+                  <span class="text-dark small fw-semibold">{{ r.quotation_deadline.strftime('%Y-%m-%d') if r.quotation_deadline else '-' }}</span>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <i class="fa-regular fa-user text-muted small"></i>
+                    <span class="small">{{ r.assigned_employee.name if r.assigned_employee else 'Unassigned' }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-pill {{ r.current_status | status_badge }}">
+                    {{ r.current_status.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge priority-{{ r.priority }}">{{ r.priority }}</span>
+                </td>
+                <td>
+                  {% set sla = r.calculated_sla %}
+                  <span class="sla-badge {% if sla.status == 'RED' %}sla-red{% elif sla.status == 'YELLOW' %}sla-yellow{% else %}sla-green{% endif %}">
+                    <i class="fa-solid {% if sla.status == 'RED' %}fa-circle-exclamation{% elif sla.status == 'YELLOW' %}fa-clock{% else %}fa-check-circle{% endif %}"></i>
+                    {{ sla.time_remaining_str }}
+                  </span>
+                </td>
+                <td>
+                  <span class="fw-semibold text-dark small">{{ r.estimated_value | currency(r.currency) }}</span>
+                </td>
+                <td class="text-end">
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-light border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                      <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                      <li>
+                        <a class="dropdown-item small" href="{{ url_for('rfq.detail_rfq', id=r.id) }}">
+                          <i class="fa-solid fa-eye me-2 text-primary"></i> View Details
+                        </a>
+                      </li>
+                      {% if current_user.is_manager or r.assigned_to_id == current_user.id %}
+                      <li>
+                        <a class="dropdown-item small" href="{{ url_for('rfq.edit_rfq', id=r.id) }}">
+                          <i class="fa-solid fa-pen-to-square me-2 text-warning"></i> Edit RFQ
+                        </a>
+                      </li>
+                      <li>
+                        <button type="button" class="dropdown-item small" onclick="openStatusModal('{{ r.id }}', '{{ r.rfq_number }}', '{{ r.current_status }}')">
+                          <i class="fa-solid fa-arrows-spin me-2 text-info"></i> Change Status
+                        </button>
+                      </li>
+                      {% endif %}
+                      {% if current_user.is_admin %}
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <form method="POST" action="{{ url_for('rfq.delete_rfq', id=r.id) }}" onsubmit="return confirm('Are you sure you want to permanently delete RFQ {{ r.rfq_number }}?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button type="submit" class="dropdown-item small text-danger">
+                            <i class="fa-solid fa-trash-can me-2"></i> Delete RFQ
+                          </button>
+                        </form>
+                      </li>
+                      {% endif %}
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="11" class="text-center py-5 text-muted">
+                  <i class="fa-solid fa-inbox fs-2 mb-2 d-block text-secondary"></i>
+                  No RFQs found matching the selected search and filter criteria.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+      <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top bg-light-subtle">
+        <span class="text-muted small">
+          Page <strong>{{ pagination.page }}</strong> of <strong>{{ pagination.pages }}</strong> (Total {{ pagination.total }} items)
+        </span>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('rfq.list_rfqs', page=pagination.prev_num, search=selected_search, status=selected_status, rfq_type=selected_type, priority=selected_priority, assigned_to=selected_assigned, sla_status=selected_sla, sort=selected_sort, start_date=selected_start, end_date=selected_end) }}">
+                Previous
+              </a>
+            </li>
+            
+            {% for p in range(1, pagination.pages + 1) %}
+              {% if p == pagination.page %}
+                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+              {% elif p <= 3 or p >= pagination.pages - 2 or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('rfq.list_rfqs', page=p, search=selected_search, status=selected_status, rfq_type=selected_type, priority=selected_priority, assigned_to=selected_assigned, sla_status=selected_sla, sort=selected_sort, start_date=selected_start, end_date=selected_end) }}">{{ p }}</a>
+                </li>
+              {% elif p == 4 or p == pagination.pages - 3 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+              {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('rfq.list_rfqs', page=pagination.next_num, search=selected_search, status=selected_status, rfq_type=selected_type, priority=selected_priority, assigned_to=selected_assigned, sla_status=selected_sla, sort=selected_sort, start_date=selected_start, end_date=selected_end) }}">
+                Next
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Quick Status Modal -->
+<div class="modal fade" id="statusChangeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form method="POST" id="statusChangeForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold" id="statusModalTitle">Change Status</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label-styled">New Workflow Status</label>
+            <select class="form-select" name="new_status" id="newStatusSelect" required>
+              {% for s in statuses %}
+                <option value="{{ s }}">{{ s.replace('_', ' ') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label-styled">Transition Comments / Rationale</label>
+            <textarea class="form-control" name="comments" rows="3" placeholder="Provide context regarding this status change (recorded in status history and audit log)..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-enterprise-primary">Update Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openStatusModal(rfqId, rfqNumber, currentStatus) {
+    document.getElementById('statusModalTitle').innerText = 'Change Status - ' + rfqNumber;
+    document.getElementById('statusChangeForm').action = '/rfqs/' + rfqId + '/status';
+    document.getElementById('newStatusSelect').value = currentStatus;
+    const modal = new bootstrap.Modal(document.getElementById('statusChangeModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

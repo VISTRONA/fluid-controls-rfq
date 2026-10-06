@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Edit RFQ #{{ rfq.rfq_number }}{% else %}New RFQ Creation{% endif %}{% endblock %}
+{% block page_title %}{% if is_edit %}Edit RFQ #{{ rfq.rfq_number }}{% else %}Create New RFQ{% endif %}{% endblock %}
+{% block page_subtitle %}{% if is_edit %}Update commercial parameters and lifecycle details{% else %}Register incoming customer request with SLA configuration{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="{% if is_edit %}{{ url_for('rfq.detail_rfq', id=rfq.id) }}{% else %}{{ url_for('rfq.list_rfqs') }}{% endif %}" class="btn btn-enterprise-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      
+      <div class="enterprise-card">
+        <div class="card-header-styled bg-white">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-file-signature text-primary"></i> 
+            {% if is_edit %}Edit RFQ Details{% else %}RFQ Registration Form{% endif %}
+          </h2>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+            {% if is_edit %}Existing Record{% else %}New Entry{% endif %}
+          </span>
+        </div>
+
+        <div class="card-body-styled">
+          <form method="POST" action="{% if is_edit %}{{ url_for('rfq.edit_rfq', id=rfq.id) }}{% else %}{{ url_for('rfq.create_rfq') }}{% endif %}" id="rfqForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Section 1: Customer Information -->
+            <div class="mb-4">
+              <h5 class="fw-bold text-dark border-bottom pb-2 mb-3" style="font-size: 15px;">
+                <i class="fa-solid fa-building text-secondary me-2"></i> Customer Information
+              </h5>
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="customer_name">Customer / Company Name <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-styled" id="customer_name" name="customer_name" required placeholder="e.g. Apex Rail Technologies Ltd" value="{{ form_data.customer_name if form_data.customer_name is defined else (rfq.customer_name if is_edit else '') }}">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label-styled" for="customer_email">Customer Email</label>
+                  <input type="email" class="form-control form-control-styled" id="customer_email" name="customer_email" placeholder="procurement@client.com" value="{{ form_data.customer_email if form_data.customer_email is defined else (rfq.customer_email if is_edit else '') }}">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label-styled" for="customer_contact">Phone / Contact</label>
+                  <input type="text" class="form-control form-control-styled" id="customer_contact" name="customer_contact" placeholder="+1-555-0199" value="{{ form_data.customer_contact if form_data.customer_contact is defined else (rfq.customer_contact if is_edit else '') }}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: RFQ Core Details -->
+            <div class="mb-4">
+              <h5 class="fw-bold text-dark border-bottom pb-2 mb-3" style="font-size: 15px;">
+                <i class="fa-solid fa-file-invoice text-secondary me-2"></i> RFQ Overview & Requirements
+              </h5>
+              <div class="row g-3">
+                {% if not is_edit %}
+                <div class="col-12 col-md-3">
+                  <label class="form-label-styled" for="rfq_number">RFQ Number (Auto if blank)</label>
+                  <input type="text" class="form-control form-control-styled" id="rfq_number" name="rfq_number" placeholder="Leave empty to auto-generate" value="{{ form_data.rfq_number if form_data.rfq_number is defined else '' }}">
+                </div>
+                {% endif %}
+
+                <div class="col-12 {% if not is_edit %}col-md-9{% else %}col-md-12{% endif %}">
+                  <label class="form-label-styled" for="title">RFQ Title / Subject <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-styled" id="title" name="title" required placeholder="e.g. Turnout Switch Assembly for High-Speed Section" value="{{ form_data.title if form_data.title is defined else (rfq.title if is_edit else '') }}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="rfq_type">RFQ Type</label>
+                  <select class="form-select form-control-styled" id="rfq_type" name="rfq_type">
+                    {% for t in rfq_types %}
+                      <option value="{{ t }}" {% if (form_data.rfq_type if form_data.rfq_type is defined else (rfq.rfq_type if is_edit else 'Domestic')) == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="priority">Priority</label>
+                  <select class="form-select form-control-styled" id="priority" name="priority">
+                    {% for p in priorities %}
+                      <option value="{{ p }}" {% if (form_data.priority if form_data.priority is defined else (rfq.priority if is_edit else 'Medium')) == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="source_channel">Source Channel</label>
+                  <select class="form-select form-control-styled" id="source_channel" name="source_channel">
+                    {% for c in channels %}
+                      <option value="{{ c }}" {% if (form_data.source_channel if form_data.source_channel is defined else (rfq.source_channel if is_edit else 'Email')) == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="product_service">Product / Service Specification</label>
+                  <input type="text" class="form-control form-control-styled" id="product_service" name="product_service" placeholder="e.g. Track Fastening Clamps - Class 8.8" value="{{ form_data.product_service if form_data.product_service is defined else (rfq.product_service if is_edit else '') }}">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label-styled" for="estimated_value">Estimated Value</label>
+                  <input type="number" step="0.01" class="form-control form-control-styled" id="estimated_value" name="estimated_value" placeholder="0.00" value="{{ form_data.estimated_value if form_data.estimated_value is defined else (rfq.estimated_value if is_edit else '0.00') }}">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label-styled" for="currency">Currency</label>
+                  <select class="form-select form-control-styled" id="currency" name="currency">
+                    {% for curr in currencies %}
+                      <option value="{{ curr }}" {% if (form_data.currency if form_data.currency is defined else (rfq.currency if is_edit else 'USD')) == curr %}selected{% endif %}>{{ curr }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label-styled" for="description">Detailed Scope / Description</label>
+                  <textarea class="form-control form-control-styled" id="description" name="description" rows="3" placeholder="Enter key deliverables, engineering scope, or customer notes...">{{ form_data.description if form_data.description is defined else (rfq.description if is_edit else '') }}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: Scheduling & SLAs -->
+            <div class="mb-4">
+              <h5 class="fw-bold text-dark border-bottom pb-2 mb-3" style="font-size: 15px;">
+                <i class="fa-solid fa-calendar-day text-secondary me-2"></i> Timeline & SLA Scheduling
+              </h5>
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="received_date">Received Date <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control form-control-styled" id="received_date" name="received_date" required value="{{ form_data.received_date if form_data.received_date is defined else (rfq.received_date.strftime('%Y-%m-%d') if is_edit and rfq.received_date else today) }}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="quotation_deadline">Quotation Deadline <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control form-control-styled" id="quotation_deadline" name="quotation_deadline" required value="{{ form_data.quotation_deadline if form_data.quotation_deadline is defined else (rfq.quotation_deadline.strftime('%Y-%m-%d') if is_edit and rfq.quotation_deadline else '') }}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label-styled" for="sla_deadline">Internal SLA Target Date</label>
+                  <input type="date" class="form-control form-control-styled" id="sla_deadline" name="sla_deadline" placeholder="Auto-calculated if blank" value="{{ form_data.sla_deadline if form_data.sla_deadline is defined else (rfq.sla_deadline.strftime('%Y-%m-%d') if is_edit and rfq.sla_deadline else '') }}">
+                  <small class="text-muted" style="font-size: 11px;">Defaults to priority SLA tier (Critical: 2d, High: 4d, Medium: 7d, Low: 14d)</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 4: Assignment & Technical Specs -->
+            <div class="mb-4">
+              <h5 class="fw-bold text-dark border-bottom pb-2 mb-3" style="font-size: 15px;">
+                <i class="fa-solid fa-user-check text-secondary me-2"></i> Assignment & Requirements
+              </h5>
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="assigned_to_id">Assigned Employee</label>
+                  <select class="form-select form-control-styled" id="assigned_to_id" name="assigned_to_id">
+                    <option value="">Unassigned</option>
+                    {% for u in users %}
+                      <option value="{{ u.id }}" {% if (form_data.assigned_to_id|string if form_data.assigned_to_id is defined else (rfq.assigned_to_id|string if is_edit else '')) == (u.id|string) %}selected{% endif %}>{{ u.name }} ({{ u.department }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="department">Department</label>
+                  <input type="text" class="form-control form-control-styled" id="department" name="department" value="{{ form_data.department if form_data.department is defined else (rfq.department if is_edit else 'Sales') }}">
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="technical_requirements">Technical Requirements</label>
+                  <textarea class="form-control form-control-styled" id="technical_requirements" name="technical_requirements" rows="2" placeholder="Quality standards, ISO certifications, tolerance limits...">{{ form_data.technical_requirements if form_data.technical_requirements is defined else (rfq.technical_requirements if is_edit else '') }}</textarea>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label-styled" for="commercial_requirements">Commercial Requirements</label>
+                  <textarea class="form-control form-control-styled" id="commercial_requirements" name="commercial_requirements" rows="2" placeholder="Payment terms, freight, validity, warranty terms...">{{ form_data.commercial_requirements if form_data.commercial_requirements is defined else (rfq.commercial_requirements if is_edit else '') }}</textarea>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label-styled" for="remarks">Internal Remarks / Notes</label>
+                  <textarea class="form-control form-control-styled" id="remarks" name="remarks" rows="2" placeholder="Special handling or internal instructions...">{{ form_data.remarks if form_data.remarks is defined else (rfq.remarks if is_edit else '') }}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button Bar -->
+            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+              <a href="{% if is_edit %}{{ url_for('rfq.detail_rfq', id=rfq.id) }}{% else %}{{ url_for('rfq.list_rfqs') }}{% endif %}" class="btn btn-outline-secondary px-4">Cancel</a>
+              <button type="submit" class="btn btn-enterprise-primary px-4">
+                <i class="fa-solid fa-floppy-disk me-1"></i> {% if is_edit %}Save Changes{% else %}Create RFQ{% endif %}
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

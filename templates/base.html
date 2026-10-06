@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard{% endblock %} | RFQ Traceability System</title>
+  
+  <!-- Modern Typography: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  
+  <!-- Chart.js 4.4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  
+  <!-- Custom Enterprise CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Sidebar -->
+    {% if current_user.is_authenticated %}
+    <aside class="sidebar" id="sidebar">
+      <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand">
+        <div class="brand-icon-box">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div>
+          <h2 class="brand-title">RFQ Tracker</h2>
+          <p class="brand-subtitle">Management System</p>
+        </div>
+      </a>
+
+      <ul class="sidebar-menu">
+        <li class="menu-category">Main Menu</li>
+        
+        <li class="sidebar-item">
+          <a href="{{ url_for('dashboard.index') }}" class="sidebar-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="{{ url_for('rfq.list_rfqs') }}" class="sidebar-link {% if 'rfq.list_rfqs' in request.endpoint or 'rfq.detail_rfq' in request.endpoint or 'rfq.create_rfq' in request.endpoint or 'rfq.edit_rfq' in request.endpoint %}active{% endif %}">
+            <i class="fa-solid fa-clipboard-list"></i>
+            <span>RFQ Records</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="{{ url_for('reports.index') }}" class="sidebar-link {% if 'reports' in request.endpoint %}active{% endif %}">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Reports & Analytics</span>
+          </a>
+        </li>
+
+        <li class="menu-category">Workspace</li>
+
+        <li class="sidebar-item">
+          <a href="{{ url_for('notifications.index') }}" class="sidebar-link {% if 'notifications' in request.endpoint %}active{% endif %}">
+            <i class="fa-solid fa-bell"></i>
+            <span>Notifications</span>
+            <span class="sidebar-badge bg-danger" id="sidebarNotificationCount" {% if not unread_notifications_count %}style="display:none"{% endif %}>{{ unread_notifications_count }}</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="{{ url_for('settings.index') }}" class="sidebar-link {% if 'settings' in request.endpoint %}active{% endif %}">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <!-- User footer in sidebar -->
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar">
+            {{ current_user.name[0] | upper }}
+          </div>
+          <div class="flex-grow-1 overflow-hidden">
+            <p class="user-meta-name text-truncate">{{ current_user.name }}</p>
+            <p class="user-meta-role">
+              <span class="badge {% if current_user.role == 'ADMIN' %}bg-danger-subtle text-danger{% elif current_user.role == 'MANAGER' %}bg-primary-subtle text-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                {{ current_user.role }}
+              </span>
+            </p>
+          </div>
+          <a href="{{ url_for('auth.logout') }}" class="text-danger-emphasis text-decoration-none" title="Logout" style="font-size: 15px;">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </a>
+        </div>
+      </div>
+    </aside>
+    {% endif %}
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+      {% if current_user.is_authenticated %}
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn btn-sm btn-light d-lg-none" id="sidebarToggle" type="button">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="header-left">
+            <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            <p>{% block page_subtitle %}RFQ and order performance overview{% endblock %}</p>
+          </div>
+        </div>
+
+        <div class="header-right">
+          {% block header_actions %}
+          <!-- Date / Month Filter & Action buttons inserted by child -->
+          {% endblock %}
+
+          <!-- Notification Bell -->
+          <a href="{{ url_for('notifications.index') }}" class="btn-icon-badge" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-badge-dot" {% if not unread_notifications_count %}style="display:none"{% endif %}>{{ unread_notifications_count }}</span>
+          </a>
+
+          <!-- Quick RFQ Action -->
+          <a href="{{ url_for('rfq.create_rfq') }}" class="btn btn-enterprise-primary btn-sm">
+            <i class="fa-solid fa-plus"></i>
+            <span>New RFQ</span>
+          </a>
+        </div>
+      </header>
+      {% endif %}
+
+      <!-- Alerts / Flash Messages -->
+      <div class="container-fluid px-4 pt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 shadow-sm border-0 d-flex align-items-center" role="alert">
+                {% if category == 'success' %}
+                  <i class="fa-solid fa-circle-check text-success me-2 fs-5"></i>
+                {% elif category == 'danger' %}
+                  <i class="fa-solid fa-triangle-exclamation text-danger me-2 fs-5"></i>
+                {% elif category == 'warning' %}
+                  <i class="fa-solid fa-circle-exclamation text-warning me-2 fs-5"></i>
+                {% else %}
+                  <i class="fa-solid fa-circle-info text-primary me-2 fs-5"></i>
+                {% endif %}
+                <div class="flex-grow-1">{{ message }}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <!-- Main Body Content -->
+      <main class="content-body">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/rfq.js') }}"></script>
+  
+  <script>
+    // Sidebar toggle for mobile
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('show');
+      });
+    }
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

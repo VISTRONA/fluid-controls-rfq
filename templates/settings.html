@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings & Profile{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Manage user profile, administrative user access, and SLA parameters{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+  
+  <div class="row g-4">
+    <!-- User Profile Card -->
+    <div class="col-12 col-lg-5">
+      <div class="enterprise-card mb-4">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-user-circle text-primary"></i> User Profile
+          </h2>
+          <span class="badge {% if current_user.role == 'ADMIN' %}bg-danger{% elif current_user.role == 'MANAGER' %}bg-primary{% else %}bg-secondary{% endif %}">
+            {{ current_user.role }}
+          </span>
+        </div>
+        <div class="card-body-styled">
+          <form method="POST" action="{{ url_for('settings.index') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_profile">
+            
+            <div class="mb-3">
+              <label class="form-label-styled">Full Name</label>
+              <input type="text" class="form-control form-control-styled" name="name" value="{{ current_user.name }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label-styled">Email Address</label>
+              <input type="email" class="form-control form-control-styled" name="email" value="{{ current_user.email }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label-styled">Department</label>
+              <input type="text" class="form-control form-control-styled bg-light" value="{{ current_user.department }}" readonly>
+            </div>
+
+            <div class="pt-3 border-top mt-3">
+              <h6 class="fw-bold text-dark small mb-3">Change Password (Optional)</h6>
+              <div class="mb-2">
+                <label class="form-label-styled">Current Password</label>
+                <input type="password" class="form-control form-control-styled" name="current_password" placeholder="••••••••">
+              </div>
+              <div class="mb-3">
+                <label class="form-label-styled">New Password</label>
+                <input type="password" class="form-control form-control-styled" name="new_password" placeholder="••••••••">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-enterprise-primary w-100 justify-content-center">
+              Update Profile
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- SLA Configuration Overview -->
+      <div class="enterprise-card mb-4">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-clock-rotate-left text-warning"></i> SLA Tier Configuration
+          </h2>
+          <span class="badge bg-light text-dark border">System Policy</span>
+        </div>
+        <div class="card-body-styled p-0">
+          <table class="enterprise-table mb-0">
+            <thead>
+              <tr>
+                <th>Priority Tier</th>
+                <th>Target Days</th>
+                <th>Warning Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for prio, days in sla_config.items() %}
+              <tr>
+                <td><span class="badge priority-{{ prio }}">{{ prio }}</span></td>
+                <td><span class="fw-bold">{{ days }} Calendar Days</span></td>
+                <td><span class="badge bg-warning-subtle text-warning">75% Consumed</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin User Management & Audit Trail -->
+    <div class="col-12 col-lg-7">
+      {% if current_user.is_admin %}
+      <!-- User Management Card -->
+      <div class="enterprise-card mb-4">
+        <div class="card-header-styled">
+          <div class="d-flex align-items-center gap-2">
+            <h2 class="card-title-styled">
+              <i class="fa-solid fa-users-gear text-primary"></i> User Access Management
+            </h2>
+            <span class="badge bg-secondary-subtle text-secondary">{{ users|length }} Users</span>
+          </div>
+          <button class="btn btn-enterprise-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createUserModal">
+            <i class="fa-solid fa-user-plus me-1"></i> Add User
+          </button>
+        </div>
+        <div class="card-body-styled p-0">
+          <div class="table-responsive">
+            <table class="enterprise-table mb-0">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ u.name }}</div>
+                    <small class="text-muted">{{ u.email }}</small>
+                  </td>
+                  <td><code>{{ u.username }}</code></td>
+                  <td>
+                    <span class="badge {% if u.role == 'ADMIN' %}bg-danger{% elif u.role == 'MANAGER' %}bg-primary{% else %}bg-secondary{% endif %}">
+                      {{ u.role }}
+                    </span>
+                  </td>
+                  <td><small>{{ u.department }}</small></td>
+                  <td>
+                    <span class="badge {% if u.is_active %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                      {{ 'Active' if u.is_active else 'Deactivated' }}
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    {% if u.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('settings.toggle_user', id=u.id) }}" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} py-1 px-2" style="font-size: 11px;">
+                        {{ 'Deactivate' if u.is_active else 'Activate' }}
+                      </button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted small">Current</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Logs Viewer -->
+      <div class="enterprise-card mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-list-check text-secondary"></i> System Audit Logs (Recent 25)
+          </h2>
+          <span class="badge bg-light text-muted border">Security & Compliance</span>
+        </div>
+        <div class="card-body-styled p-0">
+          <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+            <table class="enterprise-table mb-0">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                  <td><small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '-' }}</small></td>
+                  <td><small class="fw-semibold">{{ log.user.name if log.user else 'System' }}</small></td>
+                  <td><span class="badge bg-light text-dark border" style="font-size: 10px;">{{ log.action }}</span></td>
+                  <td><small class="text-muted">{{ log.description }}</small></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="enterprise-card mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-shield text-muted"></i> System Access Policy
+          </h2>
+        </div>
+        <div class="card-body-styled">
+          <p class="text-muted">You are logged in as a <strong>{{ current_user.role }}</strong>. Administrative functions such as user management, tenant role assignments, and system audit log inspections are restricted to Administrators.</p>
+          <div class="alert alert-info py-2 px-3 small mb-0">
+            For access elevation or configuration changes, please contact your System Administrator (<code>admin@example.com</code>).
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Create User (Admin Only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form method="POST" action="{{ url_for('settings.create_user') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header border-bottom">
+          <h5 class="modal-title fw-bold">Register New User Account</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label-styled">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="name" required placeholder="e.g. Alex Henderson">
+            </div>
+            <div class="col-6">
+              <label class="form-label-styled">Username <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="username" required placeholder="alex.h">
+            </div>
+            <div class="col-6">
+              <label class="form-label-styled">Email Address <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" name="email" required placeholder="alex@company.com">
+            </div>
+            <div class="col-6">
+              <label class="form-label-styled">Role <span class="text-danger">*</span></label>
+              <select class="form-select" name="role" required>
+                {% for r in roles %}
+                  <option value="{{ r }}" {% if r == 'USER' %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label-styled">Department</label>
+              <input type="text" class="form-control" name="department" value="Sales">
+            </div>
+            <div class="col-12">
+              <label class="form-label-styled">Temporary Password <span class="text-danger">*</span></label>
+              <input type="password" class="form-control" name="password" required value="Password123!">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-enterprise-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

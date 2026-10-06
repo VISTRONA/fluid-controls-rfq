@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Management Analytics & Reports{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}Management-level visibility into RFQ pipeline, conversion rates, and SLA compliance{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('reports.export_excel', **filters) }}" class="btn btn-outline-secondary btn-sm">Export Excel</a>
+<a href="{{ url_for('reports.print_report', **filters) }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Print / PDF</a>
+<a href="{{ url_for('reports.export_csv', **filters) }}" class="btn btn-enterprise-primary btn-sm">
+  <i class="fa-solid fa-file-csv me-1"></i> Export to CSV
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+
+  <!-- Filters Card -->
+  <div class="enterprise-card mb-4">
+    <div class="card-header-styled bg-white py-3">
+      <h2 class="card-title-styled">
+        <i class="fa-solid fa-filter text-primary"></i> Report Filters
+      </h2>
+      <span class="badge bg-secondary-subtle text-secondary">{{ total_filtered }} Matching Inquiries</span>
+    </div>
+    <div class="card-body-styled py-3">
+      <form method="GET" action="{{ url_for('reports.index') }}">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-md-3">
+            <label class="form-label-styled mb-1">Start Date</label>
+            <input type="date" class="form-control form-control-sm" name="start_date" value="{{ filters.start_date }}">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label-styled mb-1">End Date</label>
+            <input type="date" class="form-control form-control-sm" name="end_date" value="{{ filters.end_date }}">
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label-styled mb-1">Status</label>
+            <select class="form-select form-select-sm" name="status">
+              <option value="">All Statuses</option>
+              {% for s in statuses %}
+                <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s.replace('_', ' ') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label-styled mb-1">RFQ Type</label>
+            <select class="form-select form-select-sm" name="rfq_type">
+              <option value="">All Types</option>
+              {% for t in rfq_types %}
+                <option value="{{ t }}" {% if filters.rfq_type == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-2">
+            <label class="form-label-styled mb-1">Assigned Rep</label>
+            <select class="form-select form-select-sm" name="assigned_to_id">
+              <option value="">All Reps</option>
+              {% for u in users %}
+                <option value="{{ u.id }}" {% if filters.assigned_to_id == u.id|string %}selected{% endif %}>{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-3 pt-2 border-top">
+          <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary btn-sm px-3">Reset</a>
+          <button type="submit" class="btn btn-primary btn-sm px-4">Generate Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPI Analytics Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">TOTAL PIPELINE VALUE</span>
+          <div class="kpi-icon-box kpi-icon-blue"><i class="fa-solid fa-coins"></i></div>
+        </div>
+        <div class="kpi-number" style="font-size: 24px;">${{ "{:,.0f}".format(analytics.total_pipeline_value) }}</div>
+        <div class="kpi-footer">
+          <span class="text-muted small">Active potential orders</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">WON ORDER VALUE</span>
+          <div class="kpi-icon-box kpi-icon-emerald"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+        </div>
+        <div class="kpi-number text-success" style="font-size: 24px;">${{ "{:,.0f}".format(analytics.won_value) }}</div>
+        <div class="kpi-footer">
+          <span class="trend-badge trend-positive">{{ analytics.won_rfqs }} deals won</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">CONVERSION WIN RATE</span>
+          <div class="kpi-icon-box kpi-icon-indigo"><i class="fa-solid fa-trophy"></i></div>
+        </div>
+        <div class="kpi-number text-primary">{{ analytics.win_rate }}%</div>
+        <div class="kpi-footer">
+          <span class="text-muted small">Won vs Lost decided orders</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">AVG CLOSURE TIME</span>
+          <div class="kpi-icon-box kpi-icon-cyan"><i class="fa-solid fa-stopwatch"></i></div>
+        </div>
+        <div class="kpi-number">{{ analytics.avg_closure_time }} <span style="font-size: 16px; color: #64748b;">Days</span></div>
+        <div class="kpi-footer">
+          <span class="text-muted small">Cycle completion speed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Operational Performance Tables -->
+  <div class="row g-4 mb-4">
+    <!-- Employee Performance Breakdown -->
+    <div class="col-12 col-lg-8">
+      <div class="enterprise-card h-100 mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-users text-primary"></i> Representative Performance Metrics
+          </h2>
+          <span class="badge bg-light text-dark border">Productivity & Conversion</span>
+        </div>
+        <div class="card-body-styled p-0">
+          <div class="table-responsive">
+            <table class="enterprise-table mb-0">
+              <thead>
+                <tr>
+                  <th>Representative</th>
+                  <th>Total Handled</th>
+                  <th>Completed</th>
+                  <th>Deals Won</th>
+                  <th>SLA Breached</th>
+                  <th>Pipeline Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for name, stats in analytics.employee_performance.items() %}
+                <tr>
+                  <td><span class="fw-bold text-dark">{{ name }}</span></td>
+                  <td>{{ stats.total }}</td>
+                  <td><span class="badge bg-info-subtle text-info">{{ stats.completed }}</span></td>
+                  <td><span class="badge bg-success-subtle text-success">{{ stats.won }}</span></td>
+                  <td>
+                    {% if stats.breached > 0 %}
+                      <span class="badge bg-danger-subtle text-danger">{{ stats.breached }}</span>
+                    {% else %}
+                      <span class="text-muted small">0</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="fw-semibold text-primary">${{ "{:,.0f}".format(stats.total_value) }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLA Health & Top Customers -->
+    <div class="col-12 col-lg-4">
+      <!-- SLA Summary -->
+      <div class="enterprise-card mb-4">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-shield-halved text-primary"></i> SLA Compliance
+          </h2>
+        </div>
+        <div class="card-body-styled small">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Within SLA:</span>
+            <span class="badge bg-success-subtle text-success">{{ analytics.sla_stats['Within SLA'] }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Approaching Target:</span>
+            <span class="badge bg-warning-subtle text-warning">{{ analytics.sla_stats['Approaching'] }}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted">SLA Breached:</span>
+            <span class="badge bg-danger-subtle text-danger">{{ analytics.sla_stats['Breached'] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Customers -->
+      <div class="enterprise-card mb-0">
+        <div class="card-header-styled">
+          <h2 class="card-title-styled">
+            <i class="fa-solid fa-building text-primary"></i> Key Client Accounts
+          </h2>
+        </div>
+        <div class="card-body-styled p-0">
+          <ul class="list-group list-group-flush small">
+            {% for cname, count in analytics.top_customers[:6] %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-2">
+              <span class="text-truncate" style="max-width: 200px;">{{ cname }}</span>
+              <span class="badge bg-primary rounded-pill">{{ count }} RFQs</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed RFQs Sample Table -->
+  <div class="enterprise-card">
+    <div class="card-header-styled">
+      <h2 class="card-title-styled">
+        <i class="fa-solid fa-table-list text-primary"></i> RFQ Record Preview (First 50 Results)
+      </h2>
+      <a href="{{ url_for('reports.export_csv', **filters) }}" class="btn btn-outline-primary btn-sm">
+        <i class="fa-solid fa-download me-1"></i> Download All
+      </a>
+    </div>
+    <div class="card-body-styled p-0">
+      <div class="table-responsive">
+        <table class="enterprise-table mb-0">
+          <thead>
+            <tr>
+              <th>RFQ #</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Received</th>
+              <th>Deadline</th>
+              <th>Assigned To</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rfqs %}
+            <tr>
+              <td>
+                <a href="{{ url_for('rfq.detail_rfq', id=r.id) }}" class="fw-bold text-primary text-decoration-none">
+                  {{ r.rfq_number }}
+                </a>
+              </td>
+              <td><span class="fw-semibold text-dark text-truncate d-block" style="max-width: 160px;">{{ r.customer_name }}</span></td>
+              <td><span class="badge bg-light text-dark border">{{ r.rfq_type }}</span></td>
+              <td>
+                <span class="status-pill {{ r.current_status | status_badge }}">
+                  {{ r.current_status.replace('_', ' ') }}
+                </span>
+              </td>
+              <td><span class="badge priority-{{ r.priority }}">{{ r.priority }}</span></td>
+              <td><small class="text-muted">{{ r.received_date.strftime('%Y-%m-%d') if r.received_date else '-' }}</small></td>
+              <td><small class="text-dark fw-semibold">{{ r.quotation_deadline.strftime('%Y-%m-%d') if r.quotation_deadline else '-' }}</small></td>
+              <td><small>{{ r.assigned_employee.name if r.assigned_employee else 'Unassigned' }}</small></td>
+              <td><small class="fw-bold text-success">{{ r.estimated_value | currency(r.currency) }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

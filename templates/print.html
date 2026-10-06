@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }} — Fluid Controls</title>
+<style>
+/* Standalone print view only; the application's stylesheet is unchanged. */
+body{font:12px Arial,sans-serif;color:#111;margin:24px}h1{font-size:22px}h2{font-size:16px;margin-top:24px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top;overflow-wrap:anywhere}thead{display:table-header-group}tr{break-inside:avoid}p,td{white-space:pre-wrap}dt{font-weight:bold}dd{margin:0 0 8px}header{border-bottom:2px solid #234968}button{padding:8px 16px}small{color:#555}@page{size:A4 landscape;margin:12mm}@media print{.print-controls{display:none}body{margin:0}a{color:inherit;text-decoration:none}}
+</style></head><body>
+<div class="print-controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>
+
+<header><strong>Fluid Controls</strong>
+    <img src="../static/image/fc-logo.svg"
+    <h1>{{ title }}</h1><p>Generated {{ printed_at.strftime('%Y-%m-%d %H:%M') }} · Internal RFQ Tracker</p></header>
+{% if rfq %}
+<p><strong>Customer/project:</strong> {{ rfq.customer_name }}<br><strong>RFQ:</strong> {{ rfq.rfq_number }} · {{ rfq.title }}<br><strong>Contact:</strong> {{ rfq.customer_email or '—' }} / {{ rfq.customer_contact or '—' }}</p>
+{% if quotation %}
+<h2>Quotation record</h2>
+<table><tr><th>Quotation number</th><td>{{ quotation.quotation_number }}</td><th>Date</th><td>{{ quotation.quotation_date }}</td></tr><tr><th>Amount</th><td>{{ quotation.quotation_amount|currency(quotation.currency) }}</td><th>Validity</th><td>{{ quotation.validity }}</td></tr><tr><th>Status</th><td>{{ quotation.status }}</td><th>Submitted</th><td>{{ quotation.submitted_date or '—' }}</td></tr><tr><th>Prepared by</th><td colspan="3">{{ quotation.prepared_by.name if quotation.prepared_by else '—' }}</td></tr></table>
+<p>{{ quotation.remarks or '' }}</p><small>This is the quotation record stored in the app. Item pricing, taxes and commercial approvals are not implemented in this project.</small>
+{% else %}
+<table><tr><th>Workflow status</th><td>{{ rfq.current_status }}</td><th>Priority / type</th><td>{{ rfq.priority }} / {{ rfq.rfq_type }}</td></tr><tr><th>Received</th><td>{{ rfq.received_date }}</td><th>Completed</th><td>{{ rfq.completed_at or '—' }}</td></tr><tr><th>SLA deadline</th><td>{{ rfq.sla_deadline }} · {{ sla_info.label }}</td><th>Quotation deadline</th><td>{{ rfq.quotation_deadline }}</td></tr><tr><th>Assigned to</th><td>{{ rfq.assigned_employee.name if rfq.assigned_employee else 'Unassigned' }}</td><th>Estimated value</th><td>{{ rfq.estimated_value|currency(rfq.currency) }}</td></tr></table>
+<dl>{% for name,label in [('description','Description'),('product_service','Product/service'),('technical_requirements','Technical requirements'),('commercial_requirements','Commercial requirements'),('remarks','Remarks')] %}<dt>{{ label }}</dt><dd>{{ rfq|attr(name) or '—' }}</dd>{% endfor %}</dl>
+{% if rfq.tracker_data %}<h2>Original tracker cells</h2><p>{{ rfq.tracker_data.sheet }} row {{ rfq.tracker_data.row }} · Original status is separate from workflow status.</p><table>{% for k,v in rfq.tracker_data.cells.items() %}<tr><th>{{ k }}</th><td>{{ v if v is not none else '—' }}</td></tr>{% endfor %}</table>{% endif %}
+<h2>Status history</h2><table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Comments</th></tr></thead><tbody>{% for h in rfq.status_history %}<tr><td>{{ h.created_at }}</td><td>{{ h.from_status or '—' }}</td><td>{{ h.to_status }}</td><td>{{ h.comments }}</td></tr>{% endfor %}</tbody></table>
+<h2>Quotations</h2><table><thead><tr><th>Number</th><th>Date</th><th>Amount</th><th>Status / validity</th><th>Remarks</th></tr></thead><tbody>{% for q in rfq.quotations %}<tr><td>{{ q.quotation_number }}</td><td>{{ q.quotation_date }}</td><td>{{ q.quotation_amount|currency(q.currency) }}</td><td>{{ q.status }} / {{ q.validity }}</td><td>{{ q.remarks or '' }}</td></tr>{% endfor %}</tbody></table>
+<h2>Follow-ups</h2><table><thead><tr><th>Date / next</th><th>Contact / method</th><th>Status</th><th>Comments</th></tr></thead><tbody>{% for f in rfq.followups %}<tr><td>{{ f.followup_date }} / {{ f.next_followup_date or '—' }}</td><td>{{ f.contact_person }} / {{ f.contact_method }}</td><td>{{ f.status }}</td><td>{{ f.comments }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+{% else %}
+<p><strong>Filters:</strong> {% for k,v in filters.items() if v and k != 'page' %}{{ k }}={{ v }}; {% else %}All RFQs{% endfor %}</p>
+{% if analytics %}<h2>Summary</h2><p>Total {{ analytics.total_rfqs }} · Active {{ analytics.pending_rfqs }} · Completed {{ analytics.completed_rfqs }} · Won {{ analytics.won_rfqs }} · Lost {{ analytics.lost_rfqs }} · Win rate {{ analytics.win_rate }}% · Average closure {{ analytics.avg_closure_time }} days</p><p>{% for k,v in analytics.sla_stats.items() %}{{ k }}: {{ v }}; {% endfor %}</p><table><tr><th>Workflow status</th><th>Count</th></tr>{% for k,v in analytics.by_status.items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}</table>{% endif %}
+<h2>Tracker — {{ rfqs|length }} RFQs</h2><table><thead><tr><th>Enquiry / title</th><th>Customer/project</th><th>Sales / type</th><th>Original status</th><th>Workflow status</th><th>Received / completed</th><th>SLA / quote deadline</th><th>Value</th><th>Remarks</th></tr></thead><tbody>{% for r in rfqs %}<tr><td>{{ r.rfq_number }}<br>{{ r.title }}</td><td>{{ r.customer_name }}</td><td>{{ r.assigned_employee.name if r.assigned_employee else 'Unassigned' }} / {{ r.rfq_type }}</td><td>{{ r.tracker_data.cells.get('Status') if r.tracker_data else '—' }}</td><td>{{ r.current_status }}</td><td>{{ r.received_date }} / {{ r.completed_at.date() if r.completed_at else '—' }}</td><td>{{ r.sla_deadline }} / {{ r.quotation_deadline }}</td><td>{{ r.estimated_value|currency(r.currency) }}</td><td>{{ r.remarks or '' }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+</body></html>
